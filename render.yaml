@@ -1,0 +1,82 @@
+services:
+  # ---------------------------------------------------------------------
+  # 1) Main OM Suite app — unified login + admin approval + Branch,
+  #    Customer, OM Automation (CN/GST/Party) and TBB/Bill Mail tools.
+  # ---------------------------------------------------------------------
+  - type: web
+    name: om-suite-main
+    runtime: python
+    plan: free
+    rootDir: main_app
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
+    envVars:
+      - key: FLASK_SECRET
+        generateValue: true
+      - key: SECRET_KEY
+        generateValue: true
+      # Mail-sending / AI-check features (TBB + Bill modules) — fill these
+      # in from the Render dashboard after first deploy. The app runs fine
+      # without them; those specific features just stay unconfigured.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        sync: false
+      - key: AI_PROVIDER
+        value: "none"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: IMAP_HOST
+        sync: false
+      - key: IMAP_PORT
+        value: "993"
+      - key: IMAP_USER
+        sync: false
+      - key: IMAP_PASS
+        sync: false
+      - key: IMAP_SENT_FOLDER
+        value: "Sent"
+
+  # ---------------------------------------------------------------------
+  # 2) GR Auto Modification System — separate app, own login/DB, left
+  #    completely untouched. Deployed as its own Render service.
+  # ---------------------------------------------------------------------
+  - type: web
+    name: gr-auto-modification-system
+    runtime: python
+    plan: free
+    rootDir: gr_auto_modification_system
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -w 2 -b 0.0.0.0:$PORT \"app:create_app()\""
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: WTF_CSRF_ENABLED
+        value: "1"
+      - key: SESSION_LIFETIME_MINUTES
+        value: "480"
+      - key: SAVE_API_ENABLED
+        value: "false"
+      - key: SAVE_API_URL
+        value: "/manual-cn/modification/{cn_no}"
+      - key: SAVE_API_METHOD
+        value: "PUT"
+      - key: API_BASE_URL
+        value: "https://load.omone.in/utility-service/api"
+      - key: API_AUTH_MODE
+        value: "none"
+      # Paste your Postgres (e.g. Neon) connection string during deploy.
+      - key: DATABASE_URL
+        sync: false
